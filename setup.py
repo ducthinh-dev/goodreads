@@ -6,7 +6,7 @@ def setup():
     HOST = 'localhost'
     USER = 'root'
     DATABASE = 'goodreads'
-    PASSWORD = getpass.getpass(f'Enter password for {USER}: ')
+    PASSWORD = 'dogThinh123!'
 
     def getconn():
         conn = mysql.connector.connect(
