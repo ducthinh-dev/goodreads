@@ -34,10 +34,9 @@ class TfidfModel:
         self.id = id
         self.id_data = data[id]
         self.docs_data = data[docs]
-        self.tfidf = None
-        self.feature_vectors = None
+        # self.feature_vectors = None
         self.indices = pd.Series(data.index, index=data[id])
-        self.sim_matrix = None
+        # self.sim_matrix = None
 
     def preprocess_text(self, docs):
         lemmatizer = WordNetLemmatizer()
@@ -51,8 +50,8 @@ class TfidfModel:
         return tokens_list
 
     def cal_tfidf(self, docs):
-        self.tfidf = TfidfVectorizer()
-        self.feature_vectors = self.tfidf.fit_transform(docs)  
+        tfidf = TfidfVectorizer()
+        self.feature_vectors = tfidf.fit_transform(docs)  
         self.sim_matrix = cosine_similarity(self.feature_vectors)  
         
     def get_feature_vectors(self, ids=[]):
@@ -68,16 +67,14 @@ class TfidfModel:
         self.feature_vectors = new_matrix
         self.sim_matrix = cosine_similarity(self.feature_vectors)
 
-    def update_user(self, items, ratings):
+    def update_user(self, items, ratings, alpha=1):
         self.user_items = items
         _, self.items_vectors = self.get_feature_vectors(self.user_items)
         # ratings = np.array(ratings)
         self.user_ratings = ratings
+        self.ridge = Ridge(alpha=alpha).fit(self.items_vectors, self.user_ratings)
 
     def get_personal_recommendations(self, top=5):
-        if not self.user_items:
-            return 'update user profile first!'
-        self.ridge = Ridge().fit(self.items_vectors, self.user_ratings)
         a = []
         for id in self.id_data.tolist():
             if id not in self.user_items:
@@ -88,27 +85,29 @@ class TfidfModel:
         pre_dict = dict(sorted(pre_dict.items(), key=lambda item: item[1],reverse=True)[:top])
         return list(pre_dict.keys())
 
-    def mse(self, test_data, test_ratings):
+    def score(self, measurement, test_data, test_ratings):
         _, test_vectors = self.get_feature_vectors(test_data)
         predicts = self.ridge.predict(test_vectors).flatten()
-        mse = MSE(predicts, test_ratings)
-        return mse
+        score = measurement(predicts, test_ratings)
+        return score
 
-    def get_recommendations(self, id, num_recommends=5):
+    def evaluatePR(self, test_data, top=5):
+        tp = 0
+        recommended_items = self.get_personal_recommendations(top)
+        for item in recommended_items:
+            if item in test_data:
+                tp += 1
+        return tp
+
+    def get_recommendations(self, id, top=5):
         idx = self.indices[id]
         sim_scores = list(enumerate(self.sim_matrix[idx]))
         sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-        sim_scores = sim_scores[1:num_recommends]
+        sim_scores = sim_scores[1:top + 1]
         item_indices = [i[0] for i in sim_scores]
         return self.data[self.id].iloc[item_indices].tolist()
 
-    def fit(self):
-        print('initializing features')
-        tokens_list = [[' '.join(doc)][0] for doc in self.preprocess_text(self.docs_data)]
-        self.cal_tfidf(tokens_list)
-        clear_output()
-
-        # reducing features
+    def reduce_features(self):
         parameters = {
             'n_clusters': None,
             'metric': 'euclidean',
@@ -122,3 +121,12 @@ class TfidfModel:
         x_new = SelectKBest(chi2, k=4000).fit_transform(self.feature_vectors, labels)
         self.update_features(x_new)
         clear_output()
+
+    def fit(self, is_feature_reduced=False):
+        print('initializing features')
+        tokens_list = [[' '.join(doc)][0] for doc in self.preprocess_text(self.docs_data)]
+        self.cal_tfidf(tokens_list)
+        clear_output()
+        if is_feature_reduced:
+        # reducing features
+            self.reduce_features()
