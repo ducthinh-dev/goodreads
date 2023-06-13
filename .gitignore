@@ -176,5 +176,6 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/python
 
 #custom
-data/
+data/goodbooks-10k
 dumbed_models/
+diagram/
