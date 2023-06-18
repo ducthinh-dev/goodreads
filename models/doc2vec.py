@@ -51,7 +51,7 @@ class Doc2VecModel:
     def fit(self):
         processed_docs = self.preprocess_doc()
         documents = [TaggedDocument(doc, [index]) for index, doc in enumerate(processed_docs)]
-        self.model = Doc2Vec(documents, vector_size=50, window=5, min_count=3, workers=4, epochs=5)
+        self.model = Doc2Vec(documents, vector_size=50, window=5, workers=4, epochs=5)
         data_len = len(self.ids)
         for i in range(0, data_len):
             self.docvecs.append(self.model.docvecs[i])
